@@ -1,0 +1,44 @@
+import axios from 'axios';
+
+/**
+ * Fetches the stats of a Minecraft server.
+ * 
+ * @param {string} host - The Minecraft server host (e.g., play.hypixel.net).
+ * @param {number} port - The port of the Minecraft server (e.g., 25565).
+ * @param {string} version - The Minecraft version (e.g., 'java' or 'bedrock').
+ * @returns {Object} - The server stats.
+ */
+export async function checkServerStats(host, port, version) {
+  try {
+    // Build the API URL based on version type
+    const url = version === 'bedrock' 
+      ? `https://api.mcsrvstat.us/bedrock/3/${host}:${port}`
+      : `https://api.mcsrvstat.us/3/${host}:${port}`;
+
+    // Fetch the stats from the API
+    const response = await axios.get(url);
+    
+    if (!response.data || !response.data.online) {
+      throw new Error('Server is offline or no response.');
+    }
+
+    // Extract relevant server data
+    const serverStats = {
+      'Server Hostname': response.data.hostname || 'Not Provided',
+      'MOTD': response.data.motd.clean.join(' - ') || 'Not Available',
+      'Version': response.data.version || 'Unknown',
+      'Protocol Version': response.data.protocol ? response.data.protocol.name : 'Unknown',
+      'Players Online': response.data.players.online,
+      'Players Max': response.data.players.max,
+      'IP Address': response.data.ip,
+      'Port': response.data.port,
+      'Software': response.data.software || 'Unknown',
+      'Plugins': response.data.plugins ? response.data.plugins.map(plugin => plugin.name).join(', ') : 'None',
+      'Mods': response.data.mods ? response.data.mods.map(mod => mod.name).join(', ') : 'None'
+    };
+
+    return serverStats;
+  } catch (error) {
+    throw new Error(`Error fetching server stats: ${error.message}`);
+  }
+      }
