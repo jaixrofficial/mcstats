@@ -1,62 +1,43 @@
 #!/usr/bin/env node
 
-const getServerStats = require("../lib/mcstats");
-const chalk = require("chalk");
-const Table = require("cli-table3");
+// Use dynamic import to avoid "require of ES module" issue
+(async () => {
+  const { checkServerStats } = await import('../src/mcstats.js');
+  const chalk = await import('chalk');
+  const Table = (await import('cli-table3')).default;
 
-const args = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const [command, host, port, version] = args;
 
-if (args.length < 3) {
-  console.log(chalk.red("Usage: mcstats <command> <address> <port> <type>"));
-  console.log(chalk.blueBright("\nCommands:"));
-  console.log(`  ${chalk.green("check")}  - Check the status of a server`);
-  process.exit(1);
-}
+  if (command === 'check') {
+    if (!host || !port || !version) {
+      console.log(chalk.red('Usage: mcstats check <host> <port> <version>'));
+      return;
+    }
 
-const command = args[0];
-const address = args[1];
-const port = args[2];
-const type = args[3] || "java";
+    console.log(chalk.green('Fetching server stats...'));
 
-if (command === "check") {
-  getServerStats(`${address}:${port}`, type)
-    .then((stats) => {
-      if (stats.online) {
-        console.log(chalk.green("\n=== Server is Online ===\n"));
+    try {
+      // Fetch the stats from the Minecraft server
+      const stats = await checkServerStats(host, port, version);
 
-        const serverTable = new Table({
-          head: [chalk.cyan("Property"), chalk.cyan("Value")],
-          colWidths: [20, 40],
-        });
+      // Create a table to display the stats in a clean format
+      const table = new Table({
+        head: ['Property', 'Value'],
+        colWidths: [20, 50]
+      });
 
-        serverTable.push(
-          ["IP", stats.ip || "Unknown"],
-          ["Port", stats.port || "Unknown"],
-          ["Hostname", stats.hostname || "None"],
-          ["Version", stats.version || "Unknown"],
-          ["Players", `${stats.players.online}/${stats.players.max}`],
-          ["MOTD", stats.motd.clean.join("\n")]
-        );
-
-        console.log(serverTable.toString());
-      } else {
-        console.log(chalk.red("\n=== Server is Offline ===\n"));
-
-        const debugTable = new Table({
-          head: [chalk.cyan("Debug Property"), chalk.cyan("Value")],
-          colWidths: [30, 30],
-        });
-
-        for (const [key, value] of Object.entries(stats.debug)) {
-          debugTable.push([key, value ? "True" : "False"]);
-        }
-
-        console.log(debugTable.toString());
+      // Fill the table with server stats
+      for (const [key, value] of Object.entries(stats)) {
+        table.push([key, value]);
       }
-    })
-    .catch((error) => {
-      console.error(chalk.red("\nError:"), chalk.yellow(error.message));
-    });
-} else {
-  console.log(chalk.red(`Unknown command: ${command}`));
-}
+
+      // Output the table
+      console.log(table.toString());
+    } catch (error) {
+      console.log(chalk.red(error.message));
+    }
+  } else {
+    console.log(chalk.red('Invalid command! Usage: mcstats check <host> <port> <version>'));
+  }
+})();
